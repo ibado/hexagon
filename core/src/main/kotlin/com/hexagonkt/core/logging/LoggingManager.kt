@@ -7,7 +7,13 @@ import kotlin.reflect.KClass
  * Manages Logs using [JulLoggingAdapter]
  */
 object LoggingManager {
+    var useColor: Boolean = true
     var adapter: LoggingPort = JulLoggingAdapter()
+    var defaultLoggerName: String = "com.hexagonkt.core.logging"
+        set(value) {
+            require(value.isNotEmpty()) { "Default logger name cannot be empty string" }
+            field = value
+        }
 
     /**
      * Set a logger logging level by name.
