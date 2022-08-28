@@ -25,8 +25,7 @@
 
 <p align="center">
   <a href="https://hexagonkt.com">Home Site</a> |
-  <a href="https://hexagonkt.com/quick_start">Quick Start</a> |
-  <a href="https://hexagonkt.com/developer_guide">Developer Guide</a>
+  <a href="https://hexagonkt.com/quick_start">Quick Start</a>
 </p>
 
 ---
@@ -76,7 +75,7 @@ The Hexagon's goals and design principles are:
 * **Properly Tested**: The project's coverage is checked in every Pull Request. It is also
   stress-tested at [TechEmpower Frameworks Benchmark][benchmark].
 
-For more information check the [Quick Start Guide] or the [Developer Guide].
+For more information check the [Quick Start Guide].
 
 [framework]: https://stackoverflow.com/a/3057818/973418
 [Kotlin]: http://kotlinlang.org
@@ -87,7 +86,6 @@ For more information check the [Quick Start Guide] or the [Developer Guide].
 [Clean Architecture]: https://8thlight.com/blog/uncle-bob/2012/08/13/the-clean-architecture.html
 [Ports and Adapters Architecture]: https://herbertograca.com/2017/09/14/ports-adapters-architecture
 [Quick Start Guide]: http://hexagonkt.com/quick_start
-[Developer Guide]: http://hexagonkt.com/developer_guide
 
 ## Simple HTTP service
 
@@ -153,7 +151,7 @@ fun main() {
 <summary>Books Example</summary>
 
 A simple CRUD example showing how to manage book resources. Here you can check the
-[full test](http_server/src/test/kotlin/examples/BooksTest.kt).
+[full test](http_test/src/main/kotlin/com/hexagonkt/http/test/examples/BooksTest.kt).
 
 ```kotlin
 // books
@@ -227,7 +225,7 @@ private val path: PathHandler = path {
 <summary>Error Handling Example</summary>
 
 Code to show how to handle callback exceptions and HTTP error codes. Here you can check the
-[full test](http_server/src/test/kotlin/examples/ErrorsTest.kt).
+[full test](http_test/src/main/kotlin/com/hexagonkt/http/test/examples/ErrorsTest.kt).
 
 ```kotlin
 // errors
@@ -245,13 +243,13 @@ private val path: PathHandler = path {
 
     exception<IllegalArgumentException> {
         val error = exception?.message ?: exception?.javaClass?.name ?: fail
-        val newHeaders = response.headers + ("runtime-error" to error)
+        val newHeaders = response.headers + Header("runtime-error", error)
         send(HttpStatus(598), "Runtime", headers = newHeaders)
     }
 
     exception<UnsupportedOperationException> {
         val error = exception?.message ?: exception?.javaClass?.name ?: fail
-        val newHeaders = response.headers + ("error" to error)
+        val newHeaders = response.headers + Header("error", error)
         send(HttpStatus(599), "Unsupported", headers = newHeaders)
     }
 
@@ -276,7 +274,7 @@ private val path: PathHandler = path {
 <summary>Filters Example</summary>
 
 This example shows how to add filters before and after route execution. Here you can check the
-[full test](http_server/src/test/kotlin/examples/FiltersTest.kt).
+[full test](http_test/src/main/kotlin/com/hexagonkt/http/test/examples/FiltersTest.kt).
 
 ```kotlin
 // filters
@@ -292,7 +290,7 @@ private val path: PathHandler = path {
         val next = next()
         val time = (System.nanoTime() - start).toString()
         // Copies result from chain with the extra data
-        next.send(headers = response.headers + ("time" to time))
+        next.send(headers = response.headers + Header("time", time))
     }
 
     filter("/protected/*") {
@@ -346,7 +344,7 @@ private val path: PathHandler = path {
 <summary>Files Example</summary>
 
 The following code shows how to serve resources and receive files. Here you can check the
-[full test](https://github.com/hexagonkt/hexagon/blob/master/http_server/src/test/kotlin/examples/FilesTest.kt).
+[full test](http_test/src/main/kotlin/com/hexagonkt/http/test/examples/FilesTest.kt).
 
 ```kotlin
 // files
@@ -369,14 +367,14 @@ private val path: PathHandler = path {
     get("/pub/*", FileCallback(File(directory))) // Serve `test` folder on `/pub/*`
 
     post("/multipart") {
-        val headers: MultiMap<String, String> = parts.first().let { p ->
+        val headers: HttpFields<Header> = parts.first().let { p ->
             val name = p.name
             val bodyString = p.bodyString()
             val size = p.size.toString()
-            multiMapOf(
-                "name" to name,
-                "body" to bodyString,
-                "size" to size,
+            HttpFields(
+                Header("name", name),
+                Header("body", bodyString),
+                Header("size", size),
             )
         }
 
@@ -387,10 +385,10 @@ private val path: PathHandler = path {
         val part = parts.first()
         val content = part.bodyString()
         val submittedFile = part.submittedFileName ?: ""
-        ok(content, headers = response.headers + ("submitted-file" to submittedFile))
+        ok(content, headers = response.headers + Header("submitted-file", submittedFile))
     }
 
-  post("/form") {
+    post("/form") {
         fun serializeMap(map: Map<String, List<String>>): List<String> = listOf(
             map.map { "${it.key}:${it.value.joinToString(",")}}" }.joinToString("\n")
         )
@@ -398,7 +396,7 @@ private val path: PathHandler = path {
         val queryParams = serializeMap(queryParameters.allValues)
         val formParams = serializeMap(formParameters.allValues)
         val headers =
-            multiMapOfLists("query-params" to queryParams, "form-params" to formParams)
+            HttpFields(Header("query-params", queryParams), Header("form-params", formParams))
 
         ok(headers = response.headers + headers)
     }

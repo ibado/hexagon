@@ -2,6 +2,7 @@ package com.hexagonkt.http.server.callbacks
 
 import com.hexagonkt.core.Glob
 import com.hexagonkt.http.model.ClientErrorStatus.FORBIDDEN
+import com.hexagonkt.http.model.Header
 import com.hexagonkt.http.model.HttpMethod
 import com.hexagonkt.http.model.HttpMethod.Companion.ALL
 import com.hexagonkt.http.model.HttpMethod.OPTIONS
@@ -69,29 +70,29 @@ class CorsCallback(
     private fun HttpServerContext.simpleRequest(): HttpServerContext {
         val origin = request.origin() ?: return this
         if (!allowOrigin(origin))
-            return clientError(FORBIDDEN, "Not allowed origin: $origin")
+            return forbidden("Not allowed origin: $origin")
 
         val accessControlAllowOrigin = accessControlAllowOrigin(origin)
-        var h = response.headers + (ALLOW_ORIGIN to accessControlAllowOrigin)
+        var h = response.headers + Header(ALLOW_ORIGIN, accessControlAllowOrigin)
 
         if (accessControlAllowOrigin != "*")
-            h += "vary" to "Origin"
+            h += Header("vary", "Origin")
 
         if (supportCredentials)
-            h += ALLOW_CREDENTIALS to true.toString()
+            h += Header(ALLOW_CREDENTIALS, true)
 
         val accessControlRequestMethod = request.headers[REQUEST_METHOD]
         if (request.method == OPTIONS && accessControlRequestMethod != null)
             return badRequest()
 
         if (request.method !in allowedMethods)
-            return clientError(FORBIDDEN, "Not allowed method: ${request.method}")
+            return forbidden("Not allowed method: ${request.method}")
 
         if (exposedHeaders.isNotEmpty()) {
-            val requestHeaderNames = request.headers.keys.toSet()
+            val requestHeaderNames = request.headers.httpFields.keys.toSet()
             val requestHeaders = requestHeaderNames.filter { it in exposedHeaders }
 
-            h += EXPOSE_HEADERS to requestHeaders.joinToString(",")
+            h += Header(EXPOSE_HEADERS, requestHeaders.joinToString(","))
         }
 
         return success(preFlightStatus, headers = h)
@@ -101,11 +102,11 @@ class CorsCallback(
 
         val methodHeader = request.headers[REQUEST_METHOD]
         val requestMethod = methodHeader
-            ?: return clientError(FORBIDDEN, "$REQUEST_METHOD required header not found")
+            ?: return forbidden("$REQUEST_METHOD required header not found")
 
         val method = HttpMethod.valueOf(requestMethod)
         if (method !in allowedMethods)
-            return clientError(FORBIDDEN, "Not allowed method: $method")
+            return forbidden("Not allowed method: $method")
 
         val accessControlRequestHeaders = request.headers[REQUEST_HEADERS]
 
@@ -118,18 +119,28 @@ class CorsCallback(
                 .all { it in allowedHeaders }
 
             if (!allowedHeaders && this@CorsCallback.allowedHeaders.isNotEmpty())
-                return clientError(FORBIDDEN, "Not allowed headers")
+                return forbidden("Not allowed headers")
 
             val headers = this@CorsCallback.allowedHeaders
-            val requestHeaders = headers.ifEmpty { request.headers.keys.toSet() }
-            h += ALLOW_HEADERS to requestHeaders.joinToString(",")
+            val requestHeaders = headers.ifEmpty { request.headers.httpFields.keys.toSet() }
+            h += Header(ALLOW_HEADERS, requestHeaders.joinToString(","))
         }
 
-        h += REQUEST_METHOD to allowedMethods.joinToString(",")
+        h += Header(REQUEST_METHOD, allowedMethods.joinToString(","))
 
         if (preFlightMaxAge > 0)
-            h += MAX_AGE to preFlightMaxAge.toString()
+            h += Header(MAX_AGE, preFlightMaxAge.toString())
 
-        return success(preFlightStatus, headers = h)
+        val origin = request.origin() ?: ""
+        return when {
+            allowOrigin(origin) && origin.isBlank() ->
+                success(preFlightStatus, headers = h)
+            allowOrigin(origin) ->
+                success(preFlightStatus, headers = h + Header(ALLOW_ORIGIN, accessControlAllowOrigin(origin)))
+            !allowOrigin(origin) && origin.isNotBlank() ->
+                forbidden("Not allowed origin: $origin")
+            else ->
+                forbidden("Forbidden pre-flight request")
+        }
     }
 }

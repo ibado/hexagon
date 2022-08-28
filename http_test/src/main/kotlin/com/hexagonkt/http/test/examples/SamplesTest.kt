@@ -1,6 +1,6 @@
 package com.hexagonkt.http.test.examples
 
-import com.hexagonkt.core.multiMapOfLists
+import com.hexagonkt.core.CodedException
 import com.hexagonkt.core.logging.LoggingLevel.DEBUG
 import com.hexagonkt.core.logging.LoggingLevel.OFF
 import com.hexagonkt.core.logging.LoggingManager
@@ -23,7 +23,7 @@ import com.hexagonkt.http.server.HttpServer
 import com.hexagonkt.http.server.HttpServerPort
 import com.hexagonkt.http.server.HttpServerSettings
 import com.hexagonkt.http.server.callbacks.UrlCallback
-import com.hexagonkt.http.server.handlers.path
+import com.hexagonkt.http.server.handlers.*
 import com.hexagonkt.http.server.serve
 import com.hexagonkt.logging.slf4j.jul.Slf4jJulLoggingAdapter
 import org.junit.jupiter.api.AfterAll
@@ -180,15 +180,15 @@ abstract class SamplesTest(
         val server = HttpServer(serverAdapter()) {
             // callbackCall
             get("/call") {
-                attributes                   // the attributes list
-                attributes["foo"]            // value of foo attribute
+                attributes          // The attributes list
+                attributes["foo"]   // Value of foo attribute
 
-                ok("Response body")          // returns a 200 status
-                // return any status
+                ok("Response body") // Returns a 200 status
+                // return any status (previous return value is ignored here)
                 send(
                     BAD_REQUEST,
                     "Invalid request",
-                    attributes = attributes + ("A" to "V") // sets value of attribute A to V
+                    attributes = attributes + ("A" to "V") // Sets value of attribute A to V
                 )
             }
             // callbackCall
@@ -196,12 +196,12 @@ abstract class SamplesTest(
             // callbackRequest
             get("/request") {
                 // URL Information
-                request.method                   // the HTTP method (GET, ..etc)
-                request.protocol                 // http or https TODO
-                request.host                     // the host, e.g. "example.com"
-                request.port                     // the server port
-                request.path                     // the request path, e.g. /result.jsp
-                request.body                     // request body sent by the client
+                request.method                   // The HTTP method (GET, ..etc)
+                request.protocol                 // HTTP or HTTPS
+                request.host                     // The host, e.g. "example.com"
+                request.port                     // The server port
+                request.path                     // The request path, e.g. /result.jsp
+                request.body                     // Request body sent by the client
 
                 method                           // Shortcut of `request.method`
                 protocol                         // Shortcut of `request.protocol`
@@ -210,26 +210,26 @@ abstract class SamplesTest(
                 path                             // Shortcut of `request.path`
 
                 // Headers
-                request.headers                  // the HTTP header list with first values only
-                request.headers["BAR"]           // first value of BAR header
-                request.headers.allValues        // the HTTP header list with their full values list
-                request.headers.allValues["BAR"] // list of values of BAR header
+                request.headers                  // The HTTP header list
+                request.headers["BAR"]           // First value of BAR header
+                request.headers.allValues        // The HTTP header list with their full values list
+                request.headers.allValues["BAR"] // List of values of BAR header
 
                 // Common headers shortcuts
-                request.contentType              // content type of request.body
+                request.contentType              // Content type of request.body
                 request.accept                   // Client accepted content types
-                request.userAgent()              // user agent (browser requests)
-                request.origin()                 // origin (browser requests)
-                request.referer()                // TODO
+                request.userAgent()              // User agent (browser requests)
+                request.origin()                 // Origin (browser requests)
+                request.referer()                // Referer header (page that makes the request)
 
-                accept                             // Shortcut of `request.accept`
+                accept                           // Shortcut of `request.accept`
 
                 // Parameters
-                pathParameters                    // map with all path parameters
-                request.formParameters            // map with first values of all form fields
-                request.formParameters.allValues  // map with all form fields values
-                request.queryParameters           // map with first values of all query parameters
-                request.queryParameters.allValues // map with all query parameters values
+                pathParameters                    // Map with all path parameters
+                request.formParameters            // List with all form fields
+                request.formParameters.allValues  // Map with all form fields values
+                request.queryParameters           // List with all query parameters
+                request.queryParameters.allValues // Map with all query parameters values
 
                 queryParameters                   // Shortcut of `request.queryParameters`
                 queryParameters.allValues         // Shortcut of `request.queryParameters.allValues`
@@ -237,7 +237,7 @@ abstract class SamplesTest(
                 formParameters.allValues          // Shortcut of `request.formParameters.allValues`
 
                 // Body processing
-                request.contentLength             // length of request body
+                request.contentLength             // Length of request body
 
                 ok()
             }
@@ -245,37 +245,37 @@ abstract class SamplesTest(
 
             // callbackResponse
             get("/response") {
-                response.body                        // get response content
-                response.status                      // get the response status
-                response.contentType                 // get the content type
+                response.body                       // Get response content
+                response.status                     // Get the response status
+                response.contentType                // Get the content type
 
-                status                               // Shortcut of `response.status`
+                status                              // Shortcut of `response.status`
 
                 send(
-                    status = UNAUTHORIZED,           // set status code to 401
-                    body = "Hello",                  // sets content to Hello
-                    contentType = ContentType(XML),  // set content type to application/xml
+                    status = UNAUTHORIZED,          // Set status code to 401
+                    body = "Hello",                 // Sets content to Hello
+                    contentType = ContentType(XML), // Set content type to application/xml
                     headers = response.headers
-                        + ("foo" to "bar")           // sets header FOO with single value bar
-                        + multiMapOfLists("baz" to listOf("1", "2")) // sets header FOO values with [ bar ]
+                        + Header("foo", "bar")      // Sets header FOO with single value bar
+                        + Header("baz", "1", "2")   // Sets header FOO values with [ bar ]
                 )
             }
             // callbackResponse
 
             // callbackPathParam
             get("/pathParam/{foo}") {
-                pathParameters["foo"] // value of foo path parameter
-                pathParameters        // map with all parameters
+                pathParameters["foo"] // Value of foo path parameter
+                pathParameters        // Map with all parameters
                 ok()
             }
             // callbackPathParam
 
             // callbackQueryParam
             get("/queryParam") {
-                request.queryParameters                       // the query param list
-                request.queryParameters["FOO"]                // value of FOO query param
-                request.queryParameters.allValues             // the query param list
-                request.queryParameters.allValues["FOO"]      // all values of FOO query param
+                request.queryParameters                       // The query param list
+                request.queryParameters["FOO"]                // Value of FOO query param
+                request.queryParameters.allValues             // The query param list
+                request.queryParameters.allValues["FOO"]      // All values of FOO query param
 
                 ok()
             }
@@ -283,10 +283,10 @@ abstract class SamplesTest(
 
             // callbackFormParam
             get("/formParam") {
-                request.formParameters                       // the query param list
-                request.formParameters["FOO"]                // value of FOO query param
-                request.formParameters.allValues             // the query param list
-                request.formParameters.allValues["FOO"]      // all values of FOO query param
+                request.formParameters                       // The query param list
+                request.formParameters["FOO"]                // Value of FOO query param
+                request.formParameters.allValues             // The query param list
+                request.formParameters.allValues["FOO"]      // All values of FOO query param
                 ok()
             }
             // callbackFormParam
@@ -306,16 +306,16 @@ abstract class SamplesTest(
 
             // callbackCookie
             get("/cookie") {
-                request.cookies                       // get map of all request cookies
-                request.cookiesMap()["foo"]           // access request cookie by name
+                request.cookies                     // Get map of all request cookies
+                request.cookiesMap()["foo"]         // Access request cookie by name
 
                 val cookie = HttpCookie("new_foo", "bar")
                 ok(
                     cookies = listOf(
-                        cookie,                     // set cookie with a value
-                        cookie.copy(maxAge = 3600), // set cookie with a max-age
-                        cookie.copy(secure = true), // secure cookie
-                        cookie.delete(),            // remove cookie
+                        cookie,                     // Set cookie with a value
+                        cookie.copy(maxAge = 3600), // Set cookie with a max-age
+                        cookie.copy(secure = true), // Secure cookie
+                        cookie.delete(),            // Remove cookie
                     )
                 )
             }
@@ -323,10 +323,10 @@ abstract class SamplesTest(
 
             // callbackHalt
             get("/halt") {
-                clientError(UNAUTHORIZED)             // halt with status
-                clientError(UNAUTHORIZED, "Go away!") // halt with status and message
-                internalServerError("Body Message")   // halt with message (status 500)
-                internalServerError()                 // halt with status 500
+                clientError(UNAUTHORIZED)             // Halt with status
+                clientError(UNAUTHORIZED, "Go away!") // Halt with status and message
+                internalServerError("Body Message")   // Halt with message (status 500)
+                internalServerError()                 // Halt with status 500
             }
             // callbackHalt
         }
@@ -368,7 +368,7 @@ abstract class SamplesTest(
             assertEquals(OK, response.status)
             assertEquals(body, response.body)
             (headers.toList() + "b-all" + "a-all").forEach {
-                assert(response.headers.containsKey(it))
+                assert(response.headers.httpFields.containsKey(it))
             }
         }
 
@@ -376,30 +376,31 @@ abstract class SamplesTest(
             code: HttpStatus, response: HttpClientResponse, body: String, vararg headers: String) {
 
             assertEquals(code, response.status)
-            (headers.toList() + "b-all" + "a-all").forEach { assert(response.headers.contains(it)) }
+            (headers.toList() + "b-all" + "a-all")
+                .forEach { assert(response.headers.httpFields.contains(it)) }
             assertEquals(body, response.body)
         }
 
         val server = HttpServer(serverAdapter()) {
             // filters
-            on("/*") { send(headers = response.headers + ("b-all" to "true")) }
+            on("/*") { send(headers = response.headers + Header("b-all", "true")) }
 
-            on("/filters/*") { send(headers = response.headers + ("b-filters" to "true")) }
+            on("/filters/*") { send(headers = response.headers + Header("b-filters", "true")) }
             get("/filters/route") { ok("filters route") }
-            after("/filters/*") { send(headers = response.headers + ("a-filters" to "true")) }
+            after("/filters/*") { send(headers = response.headers + Header("a-filters", "true")) }
 
             get("/filters") { ok("filters") }
 
             path("/nested") {
-                on("*") { send(headers = response.headers + ("b-nested" to "true")) }
-                on { send(headers = response.headers + ("b-nested-2" to "true")) }
+                on("*") { send(headers = response.headers + Header("b-nested", "true")) }
+                on { send(headers = response.headers + Header("b-nested-2", "true")) }
                 get("/filters") { ok("nested filters") }
                 get("/halted") { send(HttpStatus(499), "halted") }
                 get { ok("nested also") }
-                after("*") { send(headers = response.headers + ("a-nested" to "true")) }
+                after("*") { send(headers = response.headers + Header("a-nested", "true")) }
             }
 
-            after("/*") { send(headers = response.headers + ("a-all" to "true")) }
+            after("/*") { send(headers = response.headers + Header("a-all", "true")) }
             // filters
         }
 
@@ -415,8 +416,8 @@ abstract class SamplesTest(
                 assertResponse(responseNested, "nested also", "b-nested", "b-nested-2", "a-nested")
                 val responseHalted = it.get("/nested/halted")
                 assertFail(HttpStatus(499), responseHalted, "halted", "b-nested", "a-nested")
-                assert(!it.get("/filters/route").headers.contains("b-nested"))
-                assert(!it.get("/filters/route").headers.contains("a-nested"))
+                assert(!it.get("/filters/route").headers.httpFields.contains("b-nested"))
+                assert(!it.get("/filters/route").headers.httpFields.contains("a-nested"))
             }
         }
     }
@@ -433,6 +434,12 @@ abstract class SamplesTest(
 
             on(pattern = "*", status = HttpStatus(512)) { send(INTERNAL_SERVER_ERROR, "Ouch") }
             // errors
+
+            exception<CodedException> { e ->
+                internalServerError(e.code.toString())
+            }
+
+            get("/codeException") { throw CodedException(9) }
 
             // exceptions
             // Register handler for routes which callbacks throw exceptions
@@ -463,6 +470,11 @@ abstract class SamplesTest(
                 val codedExceptions = it.get("/codedExceptions")
                 assertEquals(HttpStatus(599), codedExceptions.status)
                 assertEquals("code", codedExceptions.body)
+
+                it.get("/codeException").apply {
+                    assertEquals(INTERNAL_SERVER_ERROR, status)
+                    assertEquals("9", bodyString())
+                }
             }
         }
     }
@@ -521,5 +533,34 @@ abstract class SamplesTest(
             }
         }
         // test
+    }
+
+    @Test fun mockRequest() {
+        // mockRequest
+        // Test callback (basically, a handler without a predicate)
+        val callback: HttpCallback = {
+            val fakeAttribute = attributes["fake"]
+            val fakeHeader = request.headers["fake"]
+            ok("Callback result $fakeAttribute $fakeHeader")
+        }
+
+        // You can test callbacks with fake data
+        val resultContext = callback.process(
+            attributes = mapOf("fake" to "attribute"),
+            headers = HttpFields(Header("fake", "header"))
+        )
+
+        assertEquals("Callback result attribute header", resultContext.response.bodyString())
+
+        // Handlers can also be tested to check predicates along the callbacks
+        val handler = get("/path", callback)
+
+        val notFound = handler.process()
+        val ok = handler.process(method = GET, path = "/path")
+
+        assertEquals(NOT_FOUND, notFound.status)
+        assertEquals(OK, ok.status)
+        assertEquals("Callback result null null", ok.bodyString())
+        // mockRequest
     }
 }

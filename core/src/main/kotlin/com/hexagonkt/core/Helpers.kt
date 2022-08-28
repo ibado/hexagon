@@ -4,12 +4,10 @@ import com.hexagonkt.core.logging.Logger
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
+import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
-import java.util.*
 import java.util.concurrent.TimeUnit.SECONDS
-import kotlin.reflect.KClass
-import kotlin.reflect.KProperty1
 
 /**
  *  Disable heavy and optional checks in runtime. This flag can be enabled to get a small
@@ -36,28 +34,22 @@ private val logger: Logger by lazy { Logger("com.hexagonkt.core.Helpers") }
 fun <T> T.println(prefix: String = ""): T =
     apply { kotlin.io.println("$prefix$this") }
 
-/**
- * [TODO](https://github.com/hexagonkt/hexagon/issues/271).
- *
- * @param locale .
- * @return .
- */
-inline fun <reified T : ResourceBundle> resourceBundle(
-    locale: Locale = Locale.getDefault()): ResourceBundle =
-        resourceBundle(T::class, locale)
-
-/**
- * [TODO](https://github.com/hexagonkt/hexagon/issues/271).
- *
- * @param type .
- * @param locale .
- * @return .
- */
-fun <T : ResourceBundle> resourceBundle(
-    type: KClass<T>, locale: Locale = Locale.getDefault()): ResourceBundle =
-        ResourceBundle.getBundle(type.java.name, locale)
-
 // NETWORK /////////////////////////////////////////////////////////////////////////////////////////
+/** Internet address used to bind services to all local network interfaces. */
+val allInterfaces: InetAddress = inetAddress(0, 0, 0, 0)
+
+/** Internet address used to bind services to the loopback interface. */
+val loopbackInterface: InetAddress = inetAddress(127, 0, 0, 1)
+
+/**
+ * Syntactic sugar to create an Internet address.
+ *
+ * @param bytes Bytes used in the address.
+ * @return The Internet address corresponding with the supplied bytes.
+ */
+fun inetAddress(vararg bytes: Byte): InetAddress =
+    InetAddress.getByAddress(bytes)
+
 /**
  * Return a random free port (not used by any other local process).
  *
@@ -88,7 +80,7 @@ fun isPortOpened(port: Int): Boolean =
  * @param times Number of times to try to execute the callback. Must be greater than 0.
  * @param delay Milliseconds to wait to next execution if there was an error. Must be 0 or greater.
  * @param block Code to be executed.
- * @return Callback's result if succeed.
+ * @return Callback's result if succeeded.
  * @throws [MultipleException] if the callback didn't succeed in the given times.
  */
 fun <T> retry(times: Int, delay: Long, block: () -> T): T {
@@ -153,10 +145,10 @@ fun List<String>.exec(
  *  directory.
  * @param timeout Maximum number of seconds allowed for process execution. Defaults to the maximum
  *  long value. It must be greater than zero.
- * @param fail If true Raise an exception if the result code is different than zero. The default
+ * @param fail If true Raise an exception if the result code is different from zero. The default
  *  value is `false`.
  * @throws CodedException Thrown if the process return an error code (the actual code is passed
- *  inside [CodedException.code] and the command output is set at [CodedException.message].
+ *  inside [CodedException.code] and the command output is set at [CodedException.message]).
  * @throws IllegalStateException If the command doesn't end within the allowed time or the command
  *  string is blank, an exception will be thrown.
  * @return The output of the command.
@@ -222,148 +214,3 @@ fun Throwable.toText(prefix: String = ""): String =
             ""
         else
             "${eol}Caused by: " + (this.cause as Throwable).toText(prefix)
-
-// COLLECTIONS /////////////////////////////////////////////////////////////////////////////////////
-/**
- * [TODO](https://github.com/hexagonkt/hexagon/issues/271).
- *
- * @receiver .
- * @param count .
- * @return .
- */
-fun <Z> Collection<Z>.ensureSize(count: IntRange): Collection<Z> = this.apply {
-    if (size !in count) error("$size items while expecting only $count element")
-}
-
-/**
- * [TODO](https://github.com/hexagonkt/hexagon/issues/271).
- *
- * @receiver .
- * @param keys .
- * @return .
- */
-@Suppress("UNCHECKED_CAST")
-inline fun <reified T : Any> Map<*, *>.keys(vararg keys: Any): T? {
-
-    val mappedKeys = keys.map {
-        when (it) {
-            is KProperty1<*, *> -> it.name
-            else -> it
-        }
-    }
-
-    return mappedKeys
-        .dropLast(1)
-        .fold(this) { result, element ->
-            val r = result as Map<Any, Any>
-            when (val value = r[element]) {
-                is Map<*, *> -> value
-                is List<*> -> value.mapIndexed { ii, item -> ii to item }.toMap()
-                else -> emptyMap<Any, Any>()
-            }
-        }[mappedKeys.last()] as? T
-}
-
-/**
- * [TODO](https://github.com/hexagonkt/hexagon/issues/271).
- *
- * @receiver .
- * @param keys .
- * @return .
- */
-inline operator fun <reified T : Any> Map<*, *>.invoke(vararg keys: Any): T? =
-    keys(*keys)
-
-/**
- * [TODO](https://github.com/hexagonkt/hexagon/issues/271).
- *
- * @receiver .
- * @param name .
- * @return .
- */
-inline fun <reified T : Any> Map<*, *>.requireKeys(vararg name: Any): T =
-    this.keys(*name) ?: error("$name required key not found")
-
-/**
- * [TODO](https://github.com/hexagonkt/hexagon/issues/271).
- *
- * @param fields .
- * @return .
- */
-fun <T : Any> fieldsMapOf(vararg fields: Pair<KProperty1<T, *>, *>): Map<String, *> =
-    fields.associate { it.first.name to it.second }
-
-/**
- * [TODO](https://github.com/hexagonkt/hexagon/issues/271).
- *
- * @receiver .
- * @param name .
- * @return .
- */
-fun <K, V> Map<K, V>.require(name: K): V =
-    this[name] ?: error("$name required key not found")
-
-/**
- * [TODO](https://github.com/hexagonkt/hexagon/issues/271).
- *
- * @receiver .
- * @return .
- */
-fun <K, V> Map<K, V?>.filterEmpty(): Map<K, V> =
-    this.filterValues(::notEmpty).mapValues { (_, v) -> v ?: fail }
-
-/**
- * [TODO](https://github.com/hexagonkt/hexagon/issues/271).
- *
- * @receiver .
- * @return .
- */
-fun <V> List<V?>.filterEmpty(): List<V> =
-    this.filter(::notEmpty).map { it ?: fail }
-
-/**
- * [TODO](https://github.com/hexagonkt/hexagon/issues/271).
- *
- * @receiver .
- * @return .
- */
-fun Map<*, *>.filterEmptyRecursive(): Map<*, *> =
-    mapValues { (_, v) ->
-        when (v) {
-            is List<*> -> v.filterEmptyRecursive()
-            is Map<*, *> -> v.filterEmptyRecursive()
-            else -> v
-        }
-    }
-    .filterEmpty()
-
-/**
- * [TODO](https://github.com/hexagonkt/hexagon/issues/271).
- *
- * @receiver .
- * @return .
- */
-fun List<*>.filterEmptyRecursive(): List<*> =
-    map {
-        when (it) {
-            is List<*> -> it.filterEmptyRecursive()
-            is Map<*, *> -> it.filterEmptyRecursive()
-            else -> it
-        }
-    }
-    .filterEmpty()
-
-/**
- * [TODO](https://github.com/hexagonkt/hexagon/issues/271).
- *
- * @param value .
- * @return .
- */
-fun <V> notEmpty(value: V?): Boolean {
-    return when (value) {
-        null -> false
-        is List<*> -> value.isNotEmpty()
-        is Map<*, *> -> value.isNotEmpty()
-        else -> true
-    }
-}

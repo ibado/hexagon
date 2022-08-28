@@ -22,8 +22,8 @@ jobs:
         with: { ref: develop }
       - name: Build Project
         uses: ./.github/actions/gradle
-        # TODO Don't ignore these tests for Linux
-        with: { tasks: "build -x http_server_netty_epoll:test -x http_server_netty_epoll:verify" }
+      - name: Check Build
+        run: ls -AlF core/build
 
   sample_keystores:
     defaults:
@@ -74,6 +74,7 @@ jobs:
         run: |
           ./gradlew --info build
           ./gradlew --info -x build buildSite
+          ls -AlF site/build/site
 
       # CLEAN UP
       - name: Clean Gradle Cache

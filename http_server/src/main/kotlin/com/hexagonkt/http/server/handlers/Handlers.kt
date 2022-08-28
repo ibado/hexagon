@@ -1,16 +1,65 @@
 package com.hexagonkt.http.server.handlers
 
 import com.hexagonkt.core.handlers.Callback
-import com.hexagonkt.http.model.HttpMethod
+import com.hexagonkt.http.model.*
 import com.hexagonkt.http.model.HttpMethod.*
-import com.hexagonkt.http.model.HttpStatus
+import com.hexagonkt.http.model.HttpProtocol.HTTP
 import com.hexagonkt.http.server.model.HttpServerCall
+import com.hexagonkt.http.server.model.HttpServerRequest
+import java.security.cert.X509Certificate
 import kotlin.reflect.KClass
+import kotlin.reflect.cast
 
 typealias HttpCallback = HttpServerContext.() -> HttpServerContext
+typealias HttpExceptionCallback<T> = HttpServerContext.(T) -> HttpServerContext
 
 internal fun toCallback(handler: HttpCallback): Callback<HttpServerCall> =
     { context -> HttpServerContext(context).handler().context }
+
+fun HttpCallback.process(
+    request: HttpServerRequest,
+    attributes: Map<*, *> = emptyMap<Any, Any>()
+): HttpServerContext =
+    this(HttpServerContext(request = request, attributes = attributes))
+
+fun HttpCallback.process(
+    method: HttpMethod = GET,
+    protocol: HttpProtocol = HTTP,
+    host: String = "localhost",
+    port: Int = 80,
+    path: String = "",
+    queryParameters: HttpFields<QueryParameter> = HttpFields(),
+    headers: HttpFields<Header> = HttpFields(),
+    body: Any = "",
+    parts: List<HttpPart> = emptyList(),
+    formParameters: HttpFields<FormParameter> = HttpFields(),
+    cookies: List<HttpCookie> = emptyList(),
+    contentType: ContentType? = null,
+    certificateChain: List<X509Certificate> = emptyList(),
+    accept: List<ContentType> = emptyList(),
+    contentLength: Long = -1L,
+    attributes: Map<*, *> = emptyMap<Any, Any>(),
+): HttpServerContext =
+    this.process(
+        HttpServerRequest(
+            method,
+            protocol,
+            host,
+            port,
+            path,
+            queryParameters,
+            headers,
+            body,
+            parts,
+            formParameters,
+            cookies,
+            contentType,
+            certificateChain,
+            accept,
+            contentLength,
+        ),
+        attributes,
+    )
 
 // TODO Create PathBuilder to leave outside WS. ServerBuilder would use PathBuilder and WsBuilder
 fun path(pattern: String = "", block: ServerBuilder.() -> Unit): PathHandler {
@@ -93,18 +142,23 @@ fun after(method: HttpMethod, pattern: String = "", callback: HttpCallback): Aft
 fun after(pattern: String, callback: HttpCallback): AfterHandler =
     AfterHandler(pattern, callback)
 
-fun exception(
-    exception: KClass<out Exception>? = null,
+fun <T : Exception> exception(
+    exception: KClass<T>? = null,
     status: HttpStatus? = null,
-    callback: HttpCallback,
+    callback: HttpExceptionCallback<T>,
 ): AfterHandler =
-    after(emptySet(), "*", exception, status, callback)
+    after(emptySet(), "*", exception, status) {
+        callback(this.exception.castException(exception))
+    }
 
 inline fun <reified T : Exception> exception(
     status: HttpStatus? = null,
-    noinline callback: HttpCallback,
+    noinline callback: HttpExceptionCallback<T>,
 ): AfterHandler =
     exception(T::class, status, callback)
+
+internal fun <T : Exception> Exception?.castException(exception: KClass<T>?) =
+    this?.let { exception?.cast(this) } ?: error("Exception 'null' or incorrect type")
 
 fun get(pattern: String = "", callback: HttpCallback): OnHandler =
     on(GET, pattern, callback)
