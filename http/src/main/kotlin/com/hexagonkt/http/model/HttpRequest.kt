@@ -12,11 +12,12 @@ interface HttpRequest : HttpMessage {
     val port: Int                                 // 80
     val path: String                              // "/foo" servlet path + path info
     val queryParameters: HttpFields<QueryParameter>
-    val parts: List<HttpPartPort>                 // hash of multipart parts
+    val parts: List<HttpPart>                 // hash of multipart parts
     val formParameters: HttpFields<FormParameter>
     val accept: List<ContentType>
+    val authorization: HttpAuthorization?
 
-    fun partsMap(): Map<String, HttpPartPort> =
+    fun partsMap(): Map<String, HttpPart> =
         parts.associateBy { it.name }
 
     fun url(): URL =
@@ -33,4 +34,15 @@ interface HttpRequest : HttpMessage {
 
     fun origin(): String? =
         headers["origin"]
+
+    fun authorization(): HttpAuthorization? =
+        headers["authorization"]
+            ?.split(" ", limit = 2)
+            ?.let {
+                if (it.size == 2) it
+                else error("Authorization header must have two words (<type> <value>): $it")
+            }
+            ?.let {
+                HttpAuthorization(it.first(), it.last())
+            }
 }

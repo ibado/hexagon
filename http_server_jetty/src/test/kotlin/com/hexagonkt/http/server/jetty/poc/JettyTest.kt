@@ -15,11 +15,12 @@ internal class JettyTest {
     @Test fun `HTTP call works OK`() {
 
         main()
+
         val client = WebSocketClient()
         client.start()
 
         var result = ""
-        val socket = object : WebSocketAdapter() {
+        val adapter = object : WebSocketAdapter() {
             override fun onWebSocketText(message: String) {
                 result = message
                 if (message.lowercase(Locale.US).contains("bye")) {
@@ -28,14 +29,14 @@ internal class JettyTest {
             }
         }
 
-        val fut: Future<Session> = client.connect(socket, URI("ws://localhost:8080/ws"))
+        val fut: Future<Session> = client.connect(adapter, URI("ws://localhost:8080/ws"))
         val session: Session = fut.get()
 
         session.remote.sendString("Hello")
-        Thread.sleep(100)
+        Thread.sleep(300)
         assertEquals("Hello_", result)
         session.remote.sendString("Goodbye")
-        Thread.sleep(100)
+        Thread.sleep(300)
         session.close()
         assertEquals("Goodbye_", result)
         server.stop()

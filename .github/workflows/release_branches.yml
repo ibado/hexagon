@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check Out
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build Project
         uses: ./.github/actions/gradle
 
@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check Out
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Create Sample Keystores
         uses: ./.github/actions/gradle
         with:
@@ -34,20 +34,18 @@ jobs:
 
       # SET UP
       - name: Check Out
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install Java
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with: { java-version: 17, distribution: temurin }
       - name: Install ImageMagick
         uses: ./.github/actions/image_magick
       - name: Restore Cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle*.properties') }}
-          restore-keys: ${{ runner.os }}-gradle-
+          key: ${{ runner.os }}-mkdocs-${{ hashFiles('**/*.gradle*', '**/gradle*.properties') }}
+          restore-keys: ${{ runner.os }}-mkdocs-
           path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
             ~/.local/bin
             ~/.local/lib/python*/site-packages
 
@@ -70,7 +68,3 @@ jobs:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
         run: ./gradlew --info --no-daemon -x test release
-
-      # CLEAN UP
-      - name: Clean Gradle Cache
-        run: rm -f ~/.gradle/caches/modules-2/{modules-2.lock,gc.properties}

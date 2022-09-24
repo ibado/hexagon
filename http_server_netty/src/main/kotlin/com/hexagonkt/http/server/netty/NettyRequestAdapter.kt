@@ -23,7 +23,7 @@ class NettyRequestAdapter(
 ) : HttpServerRequestPort {
 
     override val accept: List<ContentType> by lazy {
-        req.headers().getAll(ACCEPT).map { parseContentType(it) }
+        req.headers().getAll(ACCEPT).flatMap { it.split(",") }.map { parseContentType(it) }
     }
 
     override val contentLength: Long by lazy {
@@ -35,7 +35,7 @@ class NettyRequestAdapter(
         HttpFields(queryStringDecoder.parameters().mapValues { (k, v) -> QueryParameter(k, v) })
     }
 
-    override val parts: List<HttpPartPort> by lazy {
+    override val parts: List<HttpPart> by lazy {
         HttpPostRequestDecoder(req).bodyHttpDatas.map {
             when (it) {
                 is FileUpload -> HttpPart(
@@ -113,4 +113,6 @@ class NettyRequestAdapter(
     override val contentType: ContentType? by lazy {
         req.headers()[CONTENT_TYPE]?.let { parseContentType(it) }
     }
+
+    override val authorization: HttpAuthorization? by lazy { authorization() }
 }
